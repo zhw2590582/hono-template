@@ -5,7 +5,7 @@ import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { config } from './config/env'
 import { errorHandler, rateLimiter, requestIdMiddleware, requestLogger } from './middleware'
-import routes from './routes'
+import routes, { websocket } from './routes'
 
 const app = new Hono<AppEnv>()
 
@@ -26,4 +26,7 @@ app.route('', routes)
 // 404
 app.notFound(c => c.json({ message: 'Not Found' }, 404))
 
-export default app
+export default {
+  fetch: app.fetch,
+  websocket,
+}
