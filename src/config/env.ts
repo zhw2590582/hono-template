@@ -9,6 +9,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   RATE_LIMIT_WINDOW: z.coerce.number().default(60000),
+  TIMEOUT: z.coerce.number().default(30000),
+  BODY_LIMIT: z.coerce.number().default(1024 * 1024), // 1MB
   DATABASE_URL: z.string().optional(),
   JWT_SECRET: z.string().default('your-super-secret-key-change-in-production'),
   JWT_EXPIRES_IN: z.string().default('7d'),
@@ -34,6 +36,8 @@ export const config = {
   corsOrigin: env.CORS_ORIGIN,
   rateLimitMax: env.RATE_LIMIT_MAX,
   rateLimitWindow: env.RATE_LIMIT_WINDOW,
+  timeout: env.TIMEOUT,
+  bodyLimit: env.BODY_LIMIT,
   database: { url: env.DATABASE_URL },
   jwt: {
     secret: env.JWT_SECRET,
