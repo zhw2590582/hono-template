@@ -1,0 +1,25 @@
+{
+  "name": "my-app",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Enterprise-grade Hono web application",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir ./dist --target bun",
+    "lint": "tsc --noEmit && eslint . --fix"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
+    "hono": "^4.12.9",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.7.3",
+    "@types/bun": "latest",
+    "eslint": "^9.20.0"
+  }
+}

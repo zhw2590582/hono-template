@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT Login Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 400px;
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+    }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header p { opacity: 0.9; font-size: 14px; }
+    .content { padding: 32px; }
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    .message.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: block; }
+    .message.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; display: block; }
+    .user-info { display: none; text-align: center; }
+    .user-info.show { display: block; }
+    .avatar {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px; color: white; font-weight: 600;
+    }
+    .user-info h2 { color: #1f2937; margin-bottom: 4px; }
+    .user-info p { color: #6b7280; margin-bottom: 20px; }
+    .info-box {
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
+      padding: 12px; margin-bottom: 20px; font-size: 13px; color: #16a34a;
+    }
+    .btn-logout { background: #ef4444; }
+    .btn-logout:hover { box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); }
+    .hint { margin-top: 20px; padding: 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #6b7280; }
+    .hint strong { color: #374151; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 JWT Login</h1>
+      <p>Hono Authentication Demo (httpOnly Cookie)</p>
+    </div>
+    <div class="content">
+      <div id="message" class="message"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" value="admin@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" value="123456" required>
+        </div>
+        <button type="submit" id="loginBtn">Sign In</button>
+        <div class="hint">
+          <strong>Test accounts:</strong><br>
+          admin@example.com / 123456<br>
+          user@example.com / 123456
+        </div>
+      </form>
+      <div id="userInfo" class="user-info">
+        <div class="avatar" id="avatar">A</div>
+        <h2 id="userName">User Name</h2>
+        <p id="userEmail">user@example.com</p>
+        <div class="info-box">🔒 Token stored in httpOnly cookie (not accessible via JavaScript)</div>
+        <button id="refreshBtn" style="margin-bottom: 12px; background: #10b981;">🔄 Refresh Token</button>
+        <button id="logoutBtn" class="btn-logout">Sign Out</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API_BASE = '/api/v1/auth'
+    const $ = id => document.getElementById(id)
+    const loginForm = $('loginForm')
+    const userInfo = $('userInfo')
+    const message = $('message')
+
+    function showMessage(text, type = 'error') {
+      message.textContent = text
+      message.className = 'message ' + type
+      setTimeout(() => { message.className = 'message' }, 5000)
+    }
+
+    function updateUI(user) {
+      if (user) {
+        loginForm.style.display = 'none'
+        userInfo.classList.add('show')
+        $('avatar').textContent = user.name[0].toUpperCase()
+        $('userName').textContent = user.name
+        $('userEmail').textContent = user.email
+      } else {
+        loginForm.style.display = 'block'
+        userInfo.classList.remove('show')
+      }
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const btn = $('loginBtn')
+      btn.disabled = true
+      btn.textContent = 'Signing in...'
+      try {
+        const res = await fetch(API_BASE + '/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: $('email').value, password: $('password').value }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || 'Login failed')
+        showMessage('Login successful!', 'success')
+        updateUI(data.user)
+      } catch (err) {
+        showMessage(err.message)
+      } finally {
+        btn.disabled = false
+        btn.textContent = 'Sign In'
+      }
+    })
+
+    async function fetchMe() {
+      try {
+        const res = await fetch(API_BASE + '/me', { credentials: 'include' })
+        if (!res.ok) { updateUI(null); return }
+        const data = await res.json()
+        updateUI(data.user)
+      } catch { updateUI(null) }
+    }
+
+    $('refreshBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch(API_BASE + '/refresh', { method: 'POST', credentials: 'include' })
+        if (!res.ok) throw new Error('Refresh failed')
+        showMessage('Token refreshed!', 'success')
+      } catch (err) { showMessage(err.message) }
+    })
+
+    $('logoutBtn').addEventListener('click', async () => {
+      try {
+        await fetch(API_BASE + '/logout', { method: 'POST', credentials: 'include' })
+        updateUI(null)
+        showMessage('Logged out', 'success')
+      } catch (err) { showMessage(err.message) }
+    })
+
+    fetchMe()
+  </script>
+</body>
+</html>
