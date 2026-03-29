@@ -1,4 +1,5 @@
 import type { AppEnv } from '../types'
+import process from 'node:process'
 import { Hono } from 'hono'
 import { db } from '../config/database'
 
