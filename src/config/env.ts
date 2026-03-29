@@ -12,9 +12,19 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   JWT_SECRET: z.string().default('your-super-secret-key-change-in-production'),
   JWT_EXPIRES_IN: z.string().default('7d'),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === 'production' && data.JWT_SECRET.includes('change-in-production')) {
+    ctx.addIssue({ code: 'custom', path: ['JWT_SECRET'], message: 'JWT_SECRET must be changed in production' })
+  }
 })
 
-const env = envSchema.parse(process.env)
+const result = envSchema.safeParse(process.env)
+if (!result.success) {
+  const errors = result.error.issues.map(e => `  ${e.path.join('.')}: ${e.message}`).join('\n')
+  console.error(`Environment validation failed:\n${errors}`)
+  process.exit(1)
+}
+const env = result.data
 
 export const config = {
   env: env.NODE_ENV,

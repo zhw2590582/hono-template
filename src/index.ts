@@ -9,13 +9,13 @@ import routes, { websocket } from './routes'
 
 const app = new Hono<AppEnv>()
 
-// 中间件
+// 中间件（errorHandler 必须最先注册以捕获所有错误）
+app.use(errorHandler)
 app.use(requestIdMiddleware)
+app.use(requestLogger)
 app.use('*', secureHeaders())
 app.use('*', cors({ origin: config.corsOrigin }))
 app.use('/api/*', rateLimiter())
-app.use(errorHandler)
-app.use(requestLogger)
 
 // 静态文件（example 目录）
 app.use('/example/*', serveStatic({ root: './' }))

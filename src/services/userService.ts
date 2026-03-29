@@ -1,40 +1,32 @@
+import { randomUUID } from 'node:crypto'
+
+interface User { id: string, name: string, email: string }
+
 // Mock database
-const users = [
-  { id: '1', name: 'John Doe', email: 'john@example.com' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com' },
-]
+const users = new Map<string, User>([
+  ['1', { id: '1', name: 'John Doe', email: 'john@example.com' }],
+  ['2', { id: '2', name: 'Jane Smith', email: 'jane@example.com' }],
+])
 
 export const userService = {
-  getAllUsers: async () => {
-    return users
-  },
+  getAllUsers: async () => Array.from(users.values()),
 
-  getUserById: async (id: string) => {
-    return users.find(u => u.id === id)
-  },
+  getUserById: async (id: string) => users.get(id),
 
   createUser: async (data: { name: string, email: string }) => {
-    const newUser = {
-      id: `${users.length + 1}`,
-      ...data,
-    }
-    users.push(newUser)
+    const id = randomUUID()
+    const newUser = { id, ...data }
+    users.set(id, newUser)
     return newUser
   },
 
   updateUser: async (id: string, data: Partial<{ name: string, email: string }>) => {
-    const user = users.find(u => u.id === id)
+    const user = users.get(id)
     if (!user)
       return null
     Object.assign(user, data)
     return user
   },
 
-  deleteUser: async (id: string) => {
-    const index = users.findIndex(u => u.id === id)
-    if (index === -1)
-      return false
-    users.splice(index, 1)
-    return true
-  },
+  deleteUser: async (id: string) => users.delete(id),
 }

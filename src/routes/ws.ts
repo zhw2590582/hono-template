@@ -1,9 +1,16 @@
 import type { AppEnv } from '../types'
 import { Hono } from 'hono'
 import { upgradeWebSocket, websocket } from 'hono/bun'
+import { z } from 'zod'
 import { logger } from '../utils'
 
 const ws = new Hono<AppEnv>()
+
+// 消息验证 schema
+const messageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('chat'), message: z.string().min(1).max(1000), user: z.string().max(50).optional() }),
+  z.object({ type: z.literal('ping') }),
+])
 
 // 存储所有连接的客户端
 const clients = new Set<{ send: (data: string) => void }>()
@@ -34,46 +41,35 @@ ws.get(
       },
 
       onMessage(event, ws) {
+        let rawData: unknown
         try {
-          const data = JSON.parse(event.data.toString())
-          logger.info('WebSocket message received', { data })
-
-          // 处理不同类型的消息
-          switch (data.type) {
-            case 'chat':
-              // 广播聊天消息给所有客户端
-              broadcast({
-                type: 'chat',
-                user: data.user || 'Anonymous',
-                message: data.message,
-                timestamp: new Date().toISOString(),
-              })
-              break
-
-            case 'ping':
-              // 回复 pong
-              ws.send(JSON.stringify({
-                type: 'pong',
-                timestamp: new Date().toISOString(),
-              }))
-              break
-
-            default:
-              // 回显未知消息
-              ws.send(JSON.stringify({
-                type: 'echo',
-                original: data,
-                timestamp: new Date().toISOString(),
-              }))
-          }
+          rawData = JSON.parse(event.data.toString())
         }
         catch {
-          // 非 JSON 消息，直接回显
-          ws.send(JSON.stringify({
-            type: 'echo',
-            message: event.data.toString(),
-            timestamp: new Date().toISOString(),
-          }))
+          rawData = null
+        }
+
+        const parsed = messageSchema.safeParse(rawData)
+        if (!parsed.success) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format', timestamp: new Date().toISOString() }))
+          return
+        }
+
+        const data = parsed.data
+        logger.info('WebSocket message received', { type: data.type })
+
+        switch (data.type) {
+          case 'chat':
+            broadcast({
+              type: 'chat',
+              user: data.user || 'Anonymous',
+              message: data.message,
+              timestamp: new Date().toISOString(),
+            })
+            break
+          case 'ping':
+            ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }))
+            break
         }
       },
 
